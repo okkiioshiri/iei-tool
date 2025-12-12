@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遺影作成ツール（幕付き・文字自動調整・ファイル名対応）</title>
+    <style>
+        /* --- 基本スタイル --- */
+        body {
+            font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #222;
+        }
+
+        /* --- コンテナ --- */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 950px;
+            width: 100%;
+        }
+
+        /* --- 左側：キャンバス --- */
+        .canvas-wrapper {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: 1px solid #ddd;
+            max-width: 100%;
+            height: fit-content;
+        }
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* --- 右側：操作パネル --- */
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .section {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .section-title {
+            font-weight: bold;
+            border-bottom: 2px solid #555;
+            padding-bottom: 5px;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input[type="range"] { width: 100%; cursor: pointer; }
+        
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        /* --- ドラッグ＆ドロップエリア --- */
+        .file-upload {
+            text-align: center;
+            padding: 20px;
+            background: #fff;
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-upload.dragover {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+            color: #2196f3;
+        }
+        .file-upload input[type="file"] { display: none; }
+        .upload-text { font-weight: bold; color: #555; pointer-events: none; }
+        .upload-sub { font-size: 12px; color: #888; margin-top: 5px; pointer-events: none; }
+
+        /* --- 保存ボタン --- */
+        .btn-download {
+            background-color: #333;
+            color: #fff;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+            font-family: inherit;
+            margin-top: 10px;
+        }
+        .btn-download:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <h1>遺影作成ツール</h1>
+
+    <div class="container">
+        <!-- 左側：プレビュー画面 -->
+        <div class="canvas-wrapper">
+            <canvas id="canvas" width="480" height="640"></canvas>
+        </div>
+
+        <!-- 右側：設定パネル -->
+        <div class="controls">
+            
+            <!-- 1. 写真アップロード -->
+            <div class="section">
+                <div class="file-upload" id="dropZone">
+                    <div class="upload-text">ここに写真をドロップ</div>
+                    <div class="upload-sub">またはクリックして選択 (自動モノクロ化)</div>
+                    <input type="file" id="photoInput" accept="image/*">
+                </div>
+            </div>
+
+            <!-- 2. 写真の調整 -->
+            <div class="section">
+                <div class="section-title">写真の調整</div>
+                <div class="input-group">
+                    <label>サイズ <span id="scaleVal">100%</span></label>
+                    <input type="range" id="scale" min="0.1" max="3" step="0.01" value="1">
+                </div>
+                <div class="input-group">
+                    <label>位置調整 (左右・上下)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="range" id="posX" min="-250" max="250" step="1" value="0">
+                        <input type="range" id="posY" min="-250" max="250" step="1" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 名前の設定 -->
+            <div class="section">
+                <div class="section-title">名前の設定</div>
+                <div class="input-group">
+                    <input type="text" id="nameText" placeholder="お名前 (例: 田中 一基)">
+                </div>
+                <div class="input-group">
+                    <label>文字サイズ <span style="font-weight:normal; color:#666; font-size:11px;">※枠を超える場合は自動縮小</span></label>
+                    <input type="range" id="textSize" min="20" max="100" step="1" value="50">
+                </div>
+                <div class="input-group">
+                    <label>上下位置</label>
+                    <input type="range" id="textPosY" min="70" max="100" step="0.5" value="86">
+                </div>
+            </div>
+
+            <!-- 4. 保存設定 -->
+            <div class="section">
+                <div class="section-title">保存設定</div>
+                <div class="input-group">
+                    <label>保存形式</label>
+                    <select id="saveFormat">
+                        <option value="image/png">PNG (高画質)</option>
+                        <option value="image/jpeg">JPG (軽量)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>保存サイズ (幅指定) <span style="font-weight:normal; color:#666;">高さは自動計算</span></label>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="number" id="saveWidth" value="480" step="10" min="100" style="width:100px;">
+                        <span style="font-size:12px;">px (高さ: <span id="saveHeightVal">640</span>px)</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="downloadBtn" class="btn-download">画像を保存する</button>
+        </div>
+    </div>
+
+    <script>
+        // 設定
+        const CONFIG = {
+            baseW: 480,
+            baseH: 640,
+            frameThickness: 40,
+            silverLineSize: 4,
+            matteTop: 30,
+            matteSide: 30,
+            matteBottom: 90,
+            defaultFont: '"Hiragino Mincho ProN", "Yu Mincho", serif'
+        };
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const ui = {
+            dropZone: document.getElementById('dropZone'),
+            file: document.getElementById('photoInput'),
+            scale: document.getElementById('scale'),
+            scaleVal: document.getElementById('scaleVal'),
+            posX: document.getElementById('posX'),
+            posY: document.getElementById('posY'),
+            name: document.getElementById('nameText'),
+            textSize: document.getElementById('textSize'),
+            textY: document.getElementById('textPosY'),
+            saveFormat: document.getElementById('saveFormat'),
+            saveWidth: document.getElementById('saveWidth'),
+            saveHeightVal: document.getElementById('saveHeightVal'),
+            btnDownload: document.getElementById('downloadBtn')
+        };
+
+        let userImage = null;
+
+        function init() {
+            ui.file.addEventListener('change', handleFileSelect);
+            setupDragAndDrop();
+            ui.btnDownload.addEventListener('click', downloadImage);
+            
+            [ui.scale, ui.posX, ui.posY, ui.name, ui.textSize, ui.textY].forEach(el => {
+                el.addEventListener('input', draw);
+            });
+            ui.saveWidth.addEventListener('input', updateSaveHeightDisplay);
+
+            draw();
+        }
+
+        // ドラッグ＆ドロップ設定
+        function setupDragAndDrop() {
+            const dz = ui.dropZone;
+            dz.addEventListener('click', () => ui.file.click());
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+                dz.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+            });
+            ['dragenter', 'dragover'].forEach(e => dz.addEventListener(e, () => dz.classList.add('dragover')));
+            ['dragleave', 'drop'].forEach(e => dz.addEventListener(e, () => dz.classList.remove('dragover')));
+            dz.addEventListener('drop', (e) => {
+                if(e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
+            });
+        }
+
+        function handleFileSelect(e) {
+            if(e.target.files.length > 0) processFile(e.target.files[0]);
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) return alert('画像を選択してください');
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const img = new Image();
+                img.onload = () => {
+                    userImage = img;
+                    ui.scale.value = 1;
+                    ui.posX.value = 0;
+                    ui.posY.value = 0;
+                    draw();
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateSaveHeightDisplay() {
+            const w = parseInt(ui.saveWidth.value) || CONFIG.baseW;
+            const h = Math.round(w * (CONFIG.baseH / CONFIG.baseW));
+            ui.saveHeightVal.textContent = h;
+        }
+
+        // 描画処理
+        function draw() {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, CONFIG.baseW, CONFIG.baseH);
+
+            const areaX = CONFIG.frameThickness + CONFIG.matteSide;
+            const areaY = CONFIG.frameThickness + CONFIG.matteTop;
+            const areaW = CONFIG.baseW - (CONFIG.frameThickness * 2) - (CONFIG.matteSide * 2);
+            const areaH = CONFIG.baseH - (CONFIG.frameThickness * 2) - CONFIG.matteTop - CONFIG.matteBottom;
+
+            // 1. 写真
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(areaX, areaY, areaW, areaH);
+            ctx.clip();
+
+            if (userImage) {
+                ctx.filter = 'grayscale(100%) contrast(110%)';
+                const scale = parseFloat(ui.scale.value);
+                const shiftX = parseFloat(ui.posX.value);
+                const shiftY = parseFloat(ui.posY.value);
+                ui.scaleVal.innerText = Math.round(scale * 100) + "%";
+
+                const imgRatio = userImage.width / userImage.height;
+                const areaRatio = areaW / areaH;
+                let drawW, drawH;
+                if (imgRatio > areaRatio) {
+                    drawH = areaH;
+                    drawW = areaH * imgRatio;
+                } else {
+                    drawW = areaW;
+                    drawH = areaW / imgRatio;
+                }
+                drawW *= scale;
+                drawH *= scale;
+
+                const cx = areaX + areaW / 2;
+                const cy = areaY + areaH / 2;
+                ctx.drawImage(userImage, cx - drawW/2 + shiftX, cy - drawH/2 + shiftY, drawW, drawH);
+            } else {
+                ctx.fillStyle = "#eee";
+                ctx.fillRect(areaX, areaY, areaW, areaH);
+                ctx.fillStyle = "#aaa";
+                ctx.font = "20px " + CONFIG.defaultFont;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("写真をドロップ", CONFIG.baseW/2, areaY + areaH/2);
+            }
+            ctx.restore();
+
+            // 2. 内枠線
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(areaX, areaY, areaW, areaH);
+
+            // 3. 名前描画（自動サイズ調整あり）
+            const name = ui.name.value;
+            if (name) {
+                let size = parseInt(ui.textSize.value);
+                const posY = CONFIG.baseH * (parseFloat(ui.textY.value) / 100);
+                
+                ctx.font = `bold ${size}px ${CONFIG.defaultFont}`;
+                const textMetrics = ctx.measureText(name);
+                const textWidth = textMetrics.width;
+
+                const maxWidth = CONFIG.baseW - (CONFIG.frameThickness * 2) - 20;
+
+                if (textWidth > maxWidth) {
+                    const ratio = maxWidth / textWidth;
+                    size = Math.floor(size * ratio);
+                    ctx.font = `bold ${size}px ${CONFIG.defaultFont}`;
+                }
+
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#000";
+                ctx.fillText(name, CONFIG.baseW/2, posY);
+            }
+
+            // 4. フレーム
+            drawFrame(ctx, CONFIG.baseW, CONFIG.baseH);
+        }
+
+        function drawFrame(context, w, h) {
+            const fw = CONFIG.frameThickness;
+            
+            // A. 黒い外枠
+            context.fillStyle = "#000000";
+            context.shadowColor = "rgba(0,0,0,0.5)";
+            context.shadowBlur = 10;
+            
+            context.fillRect(0, 0, w, fw);
+            context.fillRect(0, h-fw, w, fw);
+            context.fillRect(0, 0, fw, h);
+            context.fillRect(w-fw, 0, fw, h);
+            
+            context.shadowBlur = 0; 
+
+            // B. 銀色のライン
+            const gradSilver = context.createLinearGradient(0, 0, w, h);
+            gradSilver.addColorStop(0, "#888");
+            gradSilver.addColorStop(0.2, "#fff");
+            gradSilver.addColorStop(0.5, "#999");
+            gradSilver.addColorStop(0.8, "#fff");
+            gradSilver.addColorStop(1, "#666");
+
+            context.strokeStyle = gradSilver;
+            
+            context.lineWidth = CONFIG.silverLineSize;
+            const offset1 = fw - 8;
+            context.strokeRect(offset1, offset1, w - offset1*2, h - offset1*2);
+
+            context.lineWidth = 1;
+            const offset2 = fw - 14;
+            context.strokeRect(offset2, offset2, w - offset2*2, h - offset2*2);
+
+            // C. 黒い幕
+            drawRibbon(context, w, h, fw);
+        }
+
+        function drawRibbon(ctx, w, h, fw) {
+            ctx.beginPath();
+            ctx.lineWidth = fw; 
+            ctx.strokeStyle = "#000000"; 
+            ctx.lineCap = "butt"; 
+            
+            const startX = w / 2;
+            const startY = -fw; 
+            const endY = h * 0.35;
+            const cpY = h * 0.15; 
+
+            // 左
+            ctx.moveTo(startX, startY);
+            ctx.quadraticCurveTo(w * 0.25, cpY, -fw, endY);
+            
+            // 右
+            ctx.moveTo(startX, startY);
+            ctx.quadraticCurveTo(w * 0.75, cpY, w + fw, endY);
+            
+            ctx.stroke();
+        }
+
+        function downloadImage() {
+            const targetW = parseInt(ui.saveWidth.value) || CONFIG.baseW;
+            const ratio = CONFIG.baseH / CONFIG.baseW;
+            const targetH = Math.round(targetW * ratio);
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = targetW;
+            tempCanvas.height = targetH;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            tempCtx.imageSmoothingEnabled = true;
+            tempCtx.imageSmoothingQuality = 'high';
+            tempCtx.drawImage(canvas, 0, 0, targetW, targetH);
+
+            const link = document.createElement('a');
+            const format = ui.saveFormat.value;
+            const ext = format === 'image/jpeg' ? 'jpg' : 'png';
+            
+            // ファイル名決定処理
+            let fileName;
+            const nameVal = ui.name.value.trim();
+            if (nameVal) {
+                // 名前が入力されていればその名前を使用
+                fileName = `${nameVal}.${ext}`;
+            } else {
+                // 未入力ならデフォルト名
+                fileName = `iei_photo_${targetW}px.${ext}`;
+            }
+
+            link.download = fileName;
+            link.href = tempCanvas.toDataURL(format, 0.9);
+            link.click();
+        }
+
+        init();
+    </script>
+</body>
+</html>
