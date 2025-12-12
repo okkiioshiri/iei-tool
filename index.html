@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遺影作成ツール（幕付き・文字自動調整・ファイル名対応）</title>
+    <title>遺影作成ツール（全画面ドラッグ対応版）</title>
     <style>
         /* --- 基本スタイル --- */
         body {
@@ -15,6 +15,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            /* body全体をドロップ領域にするために高さを確保 */
+            min-height: 100vh;
+            box-sizing: border-box;
         }
 
         h1 {
@@ -35,6 +38,8 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             max-width: 950px;
             width: 100%;
+            z-index: 10; /* オーバーレイより下に配置されないように調整（必要な場合） */
+            position: relative;
         }
 
         /* --- 左側：キャンバス --- */
@@ -98,7 +103,7 @@
             font-size: 14px;
         }
 
-        /* --- ドラッグ＆ドロップエリア --- */
+        /* --- ドラッグ＆ドロップエリア（見た目） --- */
         .file-upload {
             text-align: center;
             padding: 20px;
@@ -108,14 +113,38 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        .file-upload.dragover {
-            background-color: #e3f2fd;
-            border-color: #2196f3;
-            color: #2196f3;
+        /* ドロップゾーン自体のホバー効果 */
+        .file-upload:hover {
+            border-color: #999;
+            background-color: #fcfcfc;
         }
         .file-upload input[type="file"] { display: none; }
         .upload-text { font-weight: bold; color: #555; pointer-events: none; }
         .upload-sub { font-size: 12px; color: #888; margin-top: 5px; pointer-events: none; }
+
+        /* --- 全画面ドロップ用オーバーレイ --- */
+        #dropOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(33, 150, 243, 0.85); /* 青系の半透明 */
+            z-index: 9999;
+            display: none; /* デフォルトは非表示 */
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            border: 10px dashed rgba(255,255,255,0.5);
+            box-sizing: border-box;
+            pointer-events: none; /* マウスイベントを下のdocumentに通過させるため */
+        }
+        /* JSでクラス付与時に表示 */
+        #dropOverlay.active {
+            display: flex;
+        }
 
         /* --- 保存ボタン --- */
         .btn-download {
@@ -136,6 +165,9 @@
 </head>
 <body>
 
+    <!-- 全画面ドラッグ時のオーバーレイ -->
+    <div id="dropOverlay">画像をドラッグ＆ドロップ</div>
+
     <h1>遺影作成ツール</h1>
 
     <div class="container">
@@ -149,9 +181,10 @@
             
             <!-- 1. 写真アップロード -->
             <div class="section">
-                <div class="file-upload" id="dropZone">
-                    <div class="upload-text">ここに写真をドロップ</div>
-                    <div class="upload-sub">またはクリックして選択 (自動モノクロ化)</div>
+                <!-- IDを dropZone から clickZone に変更（機能分離のため） -->
+                <div class="file-upload" id="clickZone">
+                    <div class="upload-text">クリックして写真を選択</div>
+                    <div class="upload-sub">または画面内にドロップ</div>
                     <input type="file" id="photoInput" accept="image/*">
                 </div>
             </div>
@@ -228,7 +261,8 @@
         const ctx = canvas.getContext('2d');
         
         const ui = {
-            dropZone: document.getElementById('dropZone'),
+            clickZone: document.getElementById('clickZone'),
+            dropOverlay: document.getElementById('dropOverlay'),
             file: document.getElementById('photoInput'),
             scale: document.getElementById('scale'),
             scaleVal: document.getElementById('scaleVal'),
@@ -247,7 +281,7 @@
 
         function init() {
             ui.file.addEventListener('change', handleFileSelect);
-            setupDragAndDrop();
+            setupFullPageDragAndDrop(); // 変更箇所：全画面ドラッグ設定へ
             ui.btnDownload.addEventListener('click', downloadImage);
             
             [ui.scale, ui.posX, ui.posY, ui.name, ui.textSize, ui.textY].forEach(el => {
@@ -258,17 +292,40 @@
             draw();
         }
 
-        // ドラッグ＆ドロップ設定
-        function setupDragAndDrop() {
-            const dz = ui.dropZone;
-            dz.addEventListener('click', () => ui.file.click());
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
-                dz.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        // --- 全画面ドラッグ＆ドロップ設定 ---
+        function setupFullPageDragAndDrop() {
+            // クリックでのファイル選択は既存のエリアで行う
+            ui.clickZone.addEventListener('click', () => ui.file.click());
+
+            // document全体に対するイベントリスナ
+            let dragCounter = 0; // 子要素に入ったときのちらつき防止用カウンタ
+
+            document.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                dragCounter++;
+                ui.dropOverlay.classList.add('active');
             });
-            ['dragenter', 'dragover'].forEach(e => dz.addEventListener(e, () => dz.classList.add('dragover')));
-            ['dragleave', 'drop'].forEach(e => dz.addEventListener(e, () => dz.classList.remove('dragover')));
-            dz.addEventListener('drop', (e) => {
-                if(e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
+
+            document.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dragCounter--;
+                if (dragCounter === 0) {
+                    ui.dropOverlay.classList.remove('active');
+                }
+            });
+
+            document.addEventListener('dragover', (e) => {
+                e.preventDefault(); // これがないとドロップできない
+            });
+
+            document.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dragCounter = 0;
+                ui.dropOverlay.classList.remove('active');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                }
             });
         }
 
