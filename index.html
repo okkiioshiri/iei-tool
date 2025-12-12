@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遺影作成ツール（全画面ドラッグ対応版）</title>
+    <title>遺影作成ツール</title>
     <style>
-        /* --- 基本スタイル --- */
         body {
             font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
             background-color: #f0f0f0;
@@ -15,7 +14,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* body全体をドロップ領域にするために高さを確保 */
             min-height: 100vh;
             box-sizing: border-box;
         }
@@ -26,7 +24,6 @@
             color: #222;
         }
 
-        /* --- コンテナ --- */
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -38,15 +35,11 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             max-width: 950px;
             width: 100%;
-            z-index: 10; /* オーバーレイより下に配置されないように調整（必要な場合） */
-            position: relative;
         }
 
-        /* --- 左側：キャンバス --- */
         .canvas-wrapper {
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             border: 1px solid #ddd;
-            max-width: 100%;
             height: fit-content;
         }
         canvas {
@@ -55,7 +48,6 @@
             height: auto;
         }
 
-        /* --- 右側：操作パネル --- */
         .controls {
             flex: 1;
             min-width: 300px;
@@ -103,7 +95,18 @@
             font-size: 14px;
         }
 
-        /* --- ドラッグ＆ドロップエリア（見た目） --- */
+        .btn-rotate {
+            width: 100%;
+            padding: 8px;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .btn-rotate:hover { opacity: 0.9; }
+
         .file-upload {
             text-align: center;
             padding: 20px;
@@ -113,7 +116,10 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        /* ドロップゾーン自体のホバー効果 */
+        .file-upload.highlight {
+            border-color: #555;
+            background-color: #eef;
+        }
         .file-upload:hover {
             border-color: #999;
             background-color: #fcfcfc;
@@ -122,31 +128,6 @@
         .upload-text { font-weight: bold; color: #555; pointer-events: none; }
         .upload-sub { font-size: 12px; color: #888; margin-top: 5px; pointer-events: none; }
 
-        /* --- 全画面ドロップ用オーバーレイ --- */
-        #dropOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(33, 150, 243, 0.85); /* 青系の半透明 */
-            z-index: 9999;
-            display: none; /* デフォルトは非表示 */
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            border: 10px dashed rgba(255,255,255,0.5);
-            box-sizing: border-box;
-            pointer-events: none; /* マウスイベントを下のdocumentに通過させるため */
-        }
-        /* JSでクラス付与時に表示 */
-        #dropOverlay.active {
-            display: flex;
-        }
-
-        /* --- 保存ボタン --- */
         .btn-download {
             background-color: #333;
             color: #fff;
@@ -165,31 +146,23 @@
 </head>
 <body>
 
-    <!-- 全画面ドラッグ時のオーバーレイ -->
-    <div id="dropOverlay">画像をドラッグ＆ドロップ</div>
-
     <h1>遺影作成ツール</h1>
 
     <div class="container">
-        <!-- 左側：プレビュー画面 -->
         <div class="canvas-wrapper">
             <canvas id="canvas" width="480" height="640"></canvas>
         </div>
 
-        <!-- 右側：設定パネル -->
         <div class="controls">
             
-            <!-- 1. 写真アップロード -->
             <div class="section">
-                <!-- IDを dropZone から clickZone に変更（機能分離のため） -->
                 <div class="file-upload" id="clickZone">
                     <div class="upload-text">クリックして写真を選択</div>
-                    <div class="upload-sub">または画面内にドロップ</div>
+                    <div class="upload-sub">またはここに画像をドロップ</div>
                     <input type="file" id="photoInput" accept="image/*">
                 </div>
             </div>
 
-            <!-- 2. 写真の調整 -->
             <div class="section">
                 <div class="section-title">写真の調整</div>
                 <div class="input-group">
@@ -203,16 +176,16 @@
                         <input type="range" id="posY" min="-250" max="250" step="1" value="0">
                     </div>
                 </div>
+                <button id="rotateBtn" class="btn-rotate" type="button">右に90度回転</button>
             </div>
 
-            <!-- 3. 名前の設定 -->
             <div class="section">
                 <div class="section-title">名前の設定</div>
                 <div class="input-group">
-                    <input type="text" id="nameText" placeholder="お名前 (例: デカ尻 揉み男)">
+                    <input type="text" id="nameText" value="山田 太郎" placeholder="お名前">
                 </div>
                 <div class="input-group">
-                    <label>文字サイズ <span style="font-weight:normal; color:#666; font-size:11px;">※枠を超える場合は自動縮小</span></label>
+                    <label>文字サイズ</label>
                     <input type="range" id="textSize" min="20" max="100" step="1" value="50">
                 </div>
                 <div class="input-group">
@@ -221,7 +194,6 @@
                 </div>
             </div>
 
-            <!-- 4. 保存設定 -->
             <div class="section">
                 <div class="section-title">保存設定</div>
                 <div class="input-group">
@@ -232,7 +204,7 @@
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>保存サイズ (幅指定) <span style="font-weight:normal; color:#666;">高さは自動計算</span></label>
+                    <label>保存サイズ (幅指定)</label>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <input type="number" id="saveWidth" value="480" step="10" min="100" style="width:100px;">
                         <span style="font-size:12px;">px (高さ: <span id="saveHeightVal">640</span>px)</span>
@@ -245,7 +217,6 @@
     </div>
 
     <script>
-        // 設定
         const CONFIG = {
             baseW: 480,
             baseH: 640,
@@ -262,12 +233,12 @@
         
         const ui = {
             clickZone: document.getElementById('clickZone'),
-            dropOverlay: document.getElementById('dropOverlay'),
             file: document.getElementById('photoInput'),
             scale: document.getElementById('scale'),
             scaleVal: document.getElementById('scaleVal'),
             posX: document.getElementById('posX'),
             posY: document.getElementById('posY'),
+            rotateBtn: document.getElementById('rotateBtn'),
             name: document.getElementById('nameText'),
             textSize: document.getElementById('textSize'),
             textY: document.getElementById('textPosY'),
@@ -278,12 +249,36 @@
         };
 
         let userImage = null;
+        let rotationAngle = 0;
 
         function init() {
+            ui.clickZone.addEventListener('click', () => ui.file.click());
             ui.file.addEventListener('change', handleFileSelect);
-            setupFullPageDragAndDrop(); // 変更箇所：全画面ドラッグ設定へ
+
+            const dragEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
+            
+            dragEvents.forEach(eventName => {
+                ui.clickZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                ui.clickZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                ui.clickZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            ui.clickZone.addEventListener('drop', handleDrop, false);
+
             ui.btnDownload.addEventListener('click', downloadImage);
             
+            ui.rotateBtn.addEventListener('click', () => {
+                rotationAngle = (rotationAngle + 90) % 360;
+                draw();
+            });
+
             [ui.scale, ui.posX, ui.posY, ui.name, ui.textSize, ui.textY].forEach(el => {
                 el.addEventListener('input', draw);
             });
@@ -292,41 +287,28 @@
             draw();
         }
 
-        // --- 全画面ドラッグ＆ドロップ設定 ---
-        function setupFullPageDragAndDrop() {
-            // クリックでのファイル選択は既存のエリアで行う
-            ui.clickZone.addEventListener('click', () => ui.file.click());
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
 
-            // document全体に対するイベントリスナ
-            let dragCounter = 0; // 子要素に入ったときのちらつき防止用カウンタ
+        function highlight(e) {
+            ui.clickZone.classList.add('highlight');
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+        }
 
-            document.addEventListener('dragenter', (e) => {
-                e.preventDefault();
-                dragCounter++;
-                ui.dropOverlay.classList.add('active');
-            });
+        function unhighlight(e) {
+            ui.clickZone.classList.remove('highlight');
+        }
 
-            document.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                dragCounter--;
-                if (dragCounter === 0) {
-                    ui.dropOverlay.classList.remove('active');
-                }
-            });
-
-            document.addEventListener('dragover', (e) => {
-                e.preventDefault(); // これがないとドロップできない
-            });
-
-            document.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dragCounter = 0;
-                ui.dropOverlay.classList.remove('active');
-                
-                if (e.dataTransfer.files.length > 0) {
-                    processFile(e.dataTransfer.files[0]);
-                }
-            });
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                processFile(files[0]);
+            }
         }
 
         function handleFileSelect(e) {
@@ -334,7 +316,13 @@
         }
 
         function processFile(file) {
-            if (!file.type.startsWith('image/')) return alert('画像を選択してください');
+            const isNameValid = /\.(jpe?g|png|gif|webp|bmp)$/i.test(file.name);
+
+            if (!isNameValid) {
+                // エラー表示せずに終了
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const img = new Image();
@@ -343,7 +331,11 @@
                     ui.scale.value = 1;
                     ui.posX.value = 0;
                     ui.posY.value = 0;
+                    rotationAngle = 0;
                     draw();
+                };
+                img.onerror = () => {
+                    // エラー表示せずに終了
                 };
                 img.src = evt.target.result;
             };
@@ -356,7 +348,6 @@
             ui.saveHeightVal.textContent = h;
         }
 
-        // 描画処理
         function draw() {
             ctx.fillStyle = "#fff";
             ctx.fillRect(0, 0, CONFIG.baseW, CONFIG.baseH);
@@ -366,7 +357,6 @@
             const areaW = CONFIG.baseW - (CONFIG.frameThickness * 2) - (CONFIG.matteSide * 2);
             const areaH = CONFIG.baseH - (CONFIG.frameThickness * 2) - CONFIG.matteTop - CONFIG.matteBottom;
 
-            // 1. 写真
             ctx.save();
             ctx.beginPath();
             ctx.rect(areaX, areaY, areaW, areaH);
@@ -374,14 +364,24 @@
 
             if (userImage) {
                 ctx.filter = 'grayscale(100%) contrast(110%)';
+                
                 const scale = parseFloat(ui.scale.value);
                 const shiftX = parseFloat(ui.posX.value);
                 const shiftY = parseFloat(ui.posY.value);
                 ui.scaleVal.innerText = Math.round(scale * 100) + "%";
 
-                const imgRatio = userImage.width / userImage.height;
+                let srcW = userImage.width;
+                let srcH = userImage.height;
+                const isRotated = rotationAngle % 180 !== 0;
+                if (isRotated) {
+                    srcW = userImage.height;
+                    srcH = userImage.width;
+                }
+
+                const imgRatio = srcW / srcH;
                 const areaRatio = areaW / areaH;
                 let drawW, drawH;
+                
                 if (imgRatio > areaRatio) {
                     drawH = areaH;
                     drawW = areaH * imgRatio;
@@ -394,24 +394,26 @@
 
                 const cx = areaX + areaW / 2;
                 const cy = areaY + areaH / 2;
-                ctx.drawImage(userImage, cx - drawW/2 + shiftX, cy - drawH/2 + shiftY, drawW, drawH);
+
+                ctx.translate(cx + shiftX, cy + shiftY);
+                ctx.rotate(rotationAngle * Math.PI / 180);
+
+                if (isRotated) {
+                    ctx.drawImage(userImage, -drawH/2, -drawW/2, drawH, drawW);
+                } else {
+                    ctx.drawImage(userImage, -drawW/2, -drawH/2, drawW, drawH);
+                }
+
             } else {
                 ctx.fillStyle = "#eee";
                 ctx.fillRect(areaX, areaY, areaW, areaH);
-                ctx.fillStyle = "#aaa";
-                ctx.font = "20px " + CONFIG.defaultFont;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("写真をドロップ", CONFIG.baseW/2, areaY + areaH/2);
             }
             ctx.restore();
 
-            // 2. 内枠線
             ctx.strokeStyle = "#ccc";
             ctx.lineWidth = 1;
             ctx.strokeRect(areaX, areaY, areaW, areaH);
 
-            // 3. 名前描画（自動サイズ調整あり）
             const name = ui.name.value;
             if (name) {
                 let size = parseInt(ui.textSize.value);
@@ -435,14 +437,12 @@
                 ctx.fillText(name, CONFIG.baseW/2, posY);
             }
 
-            // 4. フレーム
             drawFrame(ctx, CONFIG.baseW, CONFIG.baseH);
         }
 
         function drawFrame(context, w, h) {
             const fw = CONFIG.frameThickness;
             
-            // A. 黒い外枠
             context.fillStyle = "#000000";
             context.shadowColor = "rgba(0,0,0,0.5)";
             context.shadowBlur = 10;
@@ -454,7 +454,6 @@
             
             context.shadowBlur = 0; 
 
-            // B. 銀色のライン
             const gradSilver = context.createLinearGradient(0, 0, w, h);
             gradSilver.addColorStop(0, "#888");
             gradSilver.addColorStop(0.2, "#fff");
@@ -472,7 +471,6 @@
             const offset2 = fw - 14;
             context.strokeRect(offset2, offset2, w - offset2*2, h - offset2*2);
 
-            // C. 黒い幕
             drawRibbon(context, w, h, fw);
         }
 
@@ -487,11 +485,9 @@
             const endY = h * 0.35;
             const cpY = h * 0.15; 
 
-            // 左
             ctx.moveTo(startX, startY);
             ctx.quadraticCurveTo(w * 0.25, cpY, -fw, endY);
             
-            // 右
             ctx.moveTo(startX, startY);
             ctx.quadraticCurveTo(w * 0.75, cpY, w + fw, endY);
             
@@ -516,14 +512,11 @@
             const format = ui.saveFormat.value;
             const ext = format === 'image/jpeg' ? 'jpg' : 'png';
             
-            // ファイル名決定処理
             let fileName;
             const nameVal = ui.name.value.trim();
             if (nameVal) {
-                // 名前が入力されていればその名前を使用
                 fileName = `${nameVal}.${ext}`;
             } else {
-                // 未入力ならデフォルト名
                 fileName = `iei_photo_${targetW}px.${ext}`;
             }
 
@@ -536,4 +529,3 @@
     </script>
 </body>
 </html>
-
