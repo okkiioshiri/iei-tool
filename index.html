@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>遺影作成ツール</title>
     <style>
-        /* =========================================
-           1. 基本レイアウト・全体設定
-           ========================================= */
+        /* ==========================================================================
+           1. 全体設定・レイアウト
+           ========================================================================== */
         body {
             font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
             background-color: #f0f0f0;
@@ -27,7 +27,6 @@
             color: #222;
         }
 
-        /* メインコンテナ（キャンバスと操作パネルを横並びにする枠） */
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -39,25 +38,42 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             max-width: 950px;
             width: 100%;
+            box-sizing: border-box;
         }
 
-        /* =========================================
-           2. キャンバス（プレビュー）エリア
-           ========================================= */
+        /* キャンバスとリボンボタンを囲むエリア */
         .canvas-wrapper {
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             border: 1px solid #ddd;
             height: fit-content;
+            /* ボタンを縦に並べる設定 */
+            display: flex;
+            flex-direction: column;
+            background: #fff;
         }
+
         canvas {
             display: block;
             max-width: 100%;
             height: auto;
         }
 
-        /* =========================================
-           3. 操作パネルエリア
-           ========================================= */
+        /* 追加：リボン切り替えボタン */
+        .btn-ribbon {
+            width: 100%;
+            padding: 12px;
+            background-color: #f0f0f0;
+            color: #333;
+            border: none;
+            border-top: 1px solid #ccc;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .btn-ribbon:hover { background-color: #e0e0e0; }
+
+        /* 操作パネル */
         .controls {
             flex: 1;
             min-width: 300px;
@@ -66,7 +82,6 @@
             gap: 15px;
         }
 
-        /* 各操作セクションのスタイル */
         .section {
             background: #f9f9f9;
             padding: 15px;
@@ -82,10 +97,7 @@
             font-size: 15px;
         }
 
-        /* 入力フォーム共通設定 */
-        .input-group {
-            margin-bottom: 12px;
-        }
+        .input-group { margin-bottom: 12px; }
 
         label {
             display: flex;
@@ -104,10 +116,9 @@
             border: 1px solid #ccc;
             border-radius: 4px;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 16px;
         }
 
-        /* ボタン類 */
         .btn-rotate {
             width: 100%;
             padding: 8px;
@@ -118,11 +129,8 @@
             cursor: pointer;
             margin-top: 5px;
         }
-        .btn-rotate:hover { opacity: 0.9; }
 
-        /* =========================================
-           4. ファイルアップロード UI
-           ========================================= */
+        /* ファイルアップロード部分 */
         .file-upload {
             text-align: center;
             padding: 20px;
@@ -130,23 +138,18 @@
             border: 2px dashed #ccc;
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
         }
         .file-upload.highlight {
             border-color: #555;
             background-color: #eef;
-        }
-        .file-upload:hover {
-            border-color: #999;
-            background-color: #fcfcfc;
+            transform: scale(1.02);
         }
         .file-upload input[type="file"] { display: none; }
         .upload-text { font-weight: bold; color: #555; pointer-events: none; }
         .upload-sub { font-size: 12px; color: #888; margin-top: 5px; pointer-events: none; }
 
-        /* =========================================
-           5. ダウンロードボタン
-           ========================================= */
+        /* 保存ボタン */
         .btn-download {
             background-color: #333;
             color: #fff;
@@ -156,11 +159,57 @@
             font-weight: bold;
             border-radius: 4px;
             cursor: pointer;
-            transition: opacity 0.3s;
+            width: 100%;
             font-family: inherit;
             margin-top: 10px;
+            -webkit-appearance: none;
         }
-        .btn-download:hover { opacity: 0.8; }
+
+        /* スマホ用レイアウト調整 */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            h1 { font-size: 20px; }
+            .container { flex-direction: column; padding: 15px; gap: 20px; }
+            .canvas-wrapper { margin: 0 auto; }
+            .controls { min-width: 100%; }
+        }
+
+        /* 保存用モーダル */
+        #mobileSaveModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #mobileSaveModal.active { display: flex; }
+
+        .modal-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 100%;
+            max-height: 90%;
+            text-align: center;
+            overflow-y: auto;
+        }
+        .modal-msg { margin-bottom: 15px; line-height: 1.6; font-size: 14px; text-align: left; }
+        .modal-img { max-width: 100%; border: 1px solid #ccc; display: block; margin: 0 auto; }
+        .modal-close {
+            margin-top: 15px;
+            padding: 10px 30px;
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -168,15 +217,16 @@
     <h1>遺影作成ツール</h1>
 
     <div class="container">
-        <!-- 左側：プレビューキャンバス -->
+        <!-- キャンバスエリア -->
         <div class="canvas-wrapper">
             <canvas id="canvas" width="480" height="640"></canvas>
+            <!-- リボン切り替えボタン -->
+            <button id="ribbonBtn" class="btn-ribbon">リボン：ON</button>
         </div>
 
-        <!-- 右側：操作パネル -->
+        <!-- 操作パネル -->
         <div class="controls">
             
-            <!-- 写真アップロード -->
             <div class="section">
                 <div class="file-upload" id="clickZone">
                     <div class="upload-text">クリックして写真を選択</div>
@@ -185,7 +235,6 @@
                 </div>
             </div>
 
-            <!-- 写真調整 -->
             <div class="section">
                 <div class="section-title">写真の調整</div>
                 <div class="input-group">
@@ -202,7 +251,6 @@
                 <button id="rotateBtn" class="btn-rotate" type="button">右に90度回転</button>
             </div>
 
-            <!-- 名前設定 -->
             <div class="section">
                 <div class="section-title">名前の設定</div>
                 <div class="input-group">
@@ -218,7 +266,6 @@
                 </div>
             </div>
 
-            <!-- 保存設定 -->
             <div class="section">
                 <div class="section-title">保存設定</div>
                 <div class="input-group">
@@ -241,31 +288,30 @@
         </div>
     </div>
 
+    <!-- スマホ用保存画面 -->
+    <div id="mobileSaveModal">
+        <div class="modal-box">
+            <div class="modal-msg">
+                <strong style="color:#d32f2f; font-size:16px;">画像が作成されました</strong><br><br>
+                下の画像を<b style="color:#d32f2f;">長押し</b>して<br>
+                <b>「“写真”に保存」</b>または<b>「画像を保存」</b>を選択してください。
+            </div>
+            <img id="resultImg" class="modal-img" src="" alt="完成画像">
+            <button class="modal-close" onclick="closeModal()">閉じる</button>
+        </div>
+    </div>
+
     <script>
-        /**
-         * =========================================
-         * 設定値 (Configuration)
-         * ここで描画に関する基本数値を変更できます
-         * =========================================
-         */
+        // 設定値
         const CONFIG = {
-            baseW: 480,        // キャンバスの基本幅
-            baseH: 640,        // キャンバスの基本高さ
-            frameThickness: 40, // 額縁の太さ
-            silverLineSize: 4,  // 額縁内の装飾線の太さ
-            matteTop: 30,      // 写真上部の余白
-            matteSide: 30,     // 写真左右の余白
-            matteBottom: 90,   // 写真下部の余白（名前スペース用）
-            defaultFont: '"Hiragino Mincho ProN", "Yu Mincho", serif'
+            width: 480, height: 640, frameSize: 40,
+            font: '"Hiragino Mincho ProN", "Yu Mincho", serif'
         };
 
-        // キャンバスのコンテキスト取得
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         
-        /**
-         * DOM要素への参照 (UI References)
-         */
+        // 画面パーツの取得
         const ui = {
             clickZone: document.getElementById('clickZone'),
             file: document.getElementById('photoInput'),
@@ -274,349 +320,281 @@
             posX: document.getElementById('posX'),
             posY: document.getElementById('posY'),
             rotateBtn: document.getElementById('rotateBtn'),
+            ribbonBtn: document.getElementById('ribbonBtn'), // リボンボタン
             name: document.getElementById('nameText'),
             textSize: document.getElementById('textSize'),
             textY: document.getElementById('textPosY'),
             saveFormat: document.getElementById('saveFormat'),
             saveWidth: document.getElementById('saveWidth'),
             saveHeightVal: document.getElementById('saveHeightVal'),
-            btnDownload: document.getElementById('downloadBtn')
+            btnDownload: document.getElementById('downloadBtn'),
+            modal: document.getElementById('mobileSaveModal'),
+            modalImg: document.getElementById('resultImg')
         };
 
-        // 状態管理変数
-        let userImage = null;   // アップロードされた画像データ
-        let rotationAngle = 0;  // 画像の回転角度 (0, 90, 180, 270)
+        // 状態管理（リボン表示フラグを追加）
+        let state = {
+            image: null,
+            rotation: 0,
+            showRibbon: true
+        };
 
-        /**
-         * =========================================
-         * 初期化処理 (Initialization)
-         * =========================================
-         */
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
         function init() {
-            // ファイル選択関連のイベントリスナー
+            // ドロップ動作の制御
+            window.addEventListener('dragover', preventDefaults, false);
+            window.addEventListener('drop', preventDefaults, false);
+            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+            // ドロップゾーンの見た目制御
+            ['dragenter', 'dragover'].forEach(e => {
+                ui.clickZone.addEventListener(e, (evt) => {
+                    preventDefaults(evt); ui.clickZone.classList.add('highlight');
+                });
+            });
+            ['dragleave', 'drop'].forEach(e => {
+                ui.clickZone.addEventListener(e, (evt) => {
+                    preventDefaults(evt); ui.clickZone.classList.remove('highlight');
+                });
+            });
+
+            // ファイルドロップ時
+            ui.clickZone.addEventListener('drop', (e) => {
+                preventDefaults(e);
+                if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            // クリック選択時
             ui.clickZone.addEventListener('click', () => ui.file.click());
-            ui.file.addEventListener('change', handleFileSelect);
-
-            // ドラッグ＆ドロップ関連
-            const dragEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
-            dragEvents.forEach(eventName => {
-                ui.clickZone.addEventListener(eventName, preventDefaults, false);
-                document.body.addEventListener(eventName, preventDefaults, false);
+            ui.file.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) processFile(e.target.files[0]);
             });
 
-            ['dragenter', 'dragover'].forEach(eventName => {
-                ui.clickZone.addEventListener(eventName, highlight, false);
-            });
+            // 各種操作イベント
+            [ui.scale, ui.posX, ui.posY, ui.name, ui.textSize, ui.textY].forEach(el => 
+                el.addEventListener('input', draw)
+            );
 
-            ['dragleave', 'drop'].forEach(eventName => {
-                ui.clickZone.addEventListener(eventName, unhighlight, false);
-            });
-
-            ui.clickZone.addEventListener('drop', handleDrop, false);
-
-            // ボタン操作関連
-            ui.btnDownload.addEventListener('click', downloadImage);
-            
+            // 回転ボタン
             ui.rotateBtn.addEventListener('click', () => {
-                rotationAngle = (rotationAngle + 90) % 360;
+                state.rotation = (state.rotation + 90) % 360;
                 draw();
             });
 
-            // 各種スライダー・入力変更時に再描画
-            [ui.scale, ui.posX, ui.posY, ui.name, ui.textSize, ui.textY].forEach(el => {
-                el.addEventListener('input', draw);
+            // リボン切り替えボタン
+            ui.ribbonBtn.addEventListener('click', () => {
+                state.showRibbon = !state.showRibbon;
+                // ボタンの文字を切り替え
+                ui.ribbonBtn.textContent = state.showRibbon ? "リボン：ON" : "リボン：OFF";
+                ui.ribbonBtn.style.color = state.showRibbon ? "#333" : "#888"; // OFF時は少し色を薄く
+                draw();
             });
-            ui.saveWidth.addEventListener('input', updateSaveHeightDisplay);
 
-            // 初回描画
+            // 保存サイズ表示更新
+            ui.saveWidth.addEventListener('input', () => {
+                const w = parseInt(ui.saveWidth.value) || CONFIG.width;
+                const h = Math.round(w * (CONFIG.height / CONFIG.width));
+                ui.saveHeightVal.textContent = h;
+            });
+
+            ui.btnDownload.addEventListener('click', handleSave);
+            ui.modal.addEventListener('click', (e) => {
+                if (e.target === ui.modal) closeModal();
+            });
+
             draw();
         }
 
-        // --- ドラッグ＆ドロップ補助関数 ---
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        function highlight(e) {
-            ui.clickZone.classList.add('highlight');
-            if (e.dataTransfer) {
-                e.dataTransfer.dropEffect = 'copy';
-            }
-        }
-
-        function unhighlight(e) {
-            ui.clickZone.classList.remove('highlight');
-        }
-
-        /**
-         * =========================================
-         * ファイル読み込み処理 (File Handling)
-         * =========================================
-         */
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files && files.length > 0) {
-                processFile(files[0]);
-            }
-        }
-
-        function handleFileSelect(e) {
-            if(e.target.files.length > 0) processFile(e.target.files[0]);
-        }
-
+        // 画像処理共通関数
         function processFile(file) {
-            const isNameValid = /\.(jpe?g|png|gif|webp|bmp)$/i.test(file.name);
-
-            if (!isNameValid) {
-                // 画像以外の場合は無視
-                return;
-            }
-
+            if (!file.type.match('image.*')) return;
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const img = new Image();
                 img.onload = () => {
-                    userImage = img;
-                    // 画像変更時にパラメータをリセット
+                    state.image = img;
+                    // パラメータリセット
                     ui.scale.value = 1;
                     ui.posX.value = 0;
                     ui.posY.value = 0;
-                    rotationAngle = 0;
+                    state.rotation = 0;
                     draw();
                 };
-                img.onerror = () => { /* エラーハンドリング */ };
                 img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        // 保存サイズの高さ表示を更新
-        function updateSaveHeightDisplay() {
-            const w = parseInt(ui.saveWidth.value) || CONFIG.baseW;
-            const h = Math.round(w * (CONFIG.baseH / CONFIG.baseW));
-            ui.saveHeightVal.textContent = h;
-        }
-
-        /**
-         * =========================================
-         * 描画処理 (Main Drawing Logic)
-         * =========================================
-         */
+        // 描画メイン処理
         function draw() {
-            // 背景クリア
             ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, CONFIG.baseW, CONFIG.baseH);
+            ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
 
-            // 写真が表示される領域の計算
-            const areaX = CONFIG.frameThickness + CONFIG.matteSide;
-            const areaY = CONFIG.frameThickness + CONFIG.matteTop;
-            const areaW = CONFIG.baseW - (CONFIG.frameThickness * 2) - (CONFIG.matteSide * 2);
-            const areaH = CONFIG.baseH - (CONFIG.frameThickness * 2) - CONFIG.matteTop - CONFIG.matteBottom;
+            // 描画エリア計算
+            const margin = 30;
+            const bottomMargin = 90;
+            const areaX = CONFIG.frameSize + margin;
+            const areaY = CONFIG.frameSize + margin;
+            const areaW = CONFIG.width - (CONFIG.frameSize * 2) - (margin * 2);
+            const areaH = CONFIG.height - (CONFIG.frameSize * 2) - margin - bottomMargin;
 
-            // --- 1. 写真の描画 ---
+            // 写真描画
             ctx.save();
             ctx.beginPath();
             ctx.rect(areaX, areaY, areaW, areaH);
-            ctx.clip(); // 額縁の内側だけで描画するようにクリッピング
+            ctx.clip();
 
-            if (userImage) {
-                // 遺影風のエフェクト (白黒 + コントラスト)
-                ctx.filter = 'grayscale(100%) contrast(110%)';
-                
+            if (state.image) {
                 const scale = parseFloat(ui.scale.value);
                 const shiftX = parseFloat(ui.posX.value);
                 const shiftY = parseFloat(ui.posY.value);
                 ui.scaleVal.innerText = Math.round(scale * 100) + "%";
 
-                let srcW = userImage.width;
-                let srcH = userImage.height;
-                const isRotated = rotationAngle % 180 !== 0;
-                
-                // 回転時のサイズ入替
-                if (isRotated) {
-                    srcW = userImage.height;
-                    srcH = userImage.width;
-                }
+                let srcW = state.image.width;
+                let srcH = state.image.height;
+                const isRotated = state.rotation % 180 !== 0;
+                if (isRotated) { srcW = state.image.height; srcH = state.image.width; }
 
-                // 領域に合わせてフィットさせる計算
                 const imgRatio = srcW / srcH;
                 const areaRatio = areaW / areaH;
                 let drawW, drawH;
                 
                 if (imgRatio > areaRatio) {
-                    drawH = areaH;
-                    drawW = areaH * imgRatio;
+                    drawH = areaH; drawW = areaH * imgRatio;
                 } else {
-                    drawW = areaW;
-                    drawH = areaW / imgRatio;
+                    drawW = areaW; drawH = areaW / imgRatio;
                 }
                 drawW *= scale;
                 drawH *= scale;
 
-                // 中心点への移動と回転
-                const cx = areaX + areaW / 2;
-                const cy = areaY + areaH / 2;
-
-                ctx.translate(cx + shiftX, cy + shiftY);
-                ctx.rotate(rotationAngle * Math.PI / 180);
-
+                ctx.translate(areaX + areaW/2 + shiftX, areaY + areaH/2 + shiftY);
+                ctx.rotate(state.rotation * Math.PI / 180);
+                
                 if (isRotated) {
-                    ctx.drawImage(userImage, -drawH/2, -drawW/2, drawH, drawW);
+                    ctx.drawImage(state.image, -drawH/2, -drawW/2, drawH, drawW);
                 } else {
-                    ctx.drawImage(userImage, -drawW/2, -drawH/2, drawW, drawH);
+                    ctx.drawImage(state.image, -drawW/2, -drawH/2, drawW, drawH);
                 }
-
             } else {
-                // 画像がない場合のプレースホルダー
                 ctx.fillStyle = "#eee";
                 ctx.fillRect(areaX, areaY, areaW, areaH);
             }
             ctx.restore();
 
-            // 内枠の線
+            // 白黒化処理
+            if (state.image) applyGrayscale(ctx, areaX, areaY, areaW, areaH);
+
+            // 写真の内枠線
             ctx.strokeStyle = "#ccc";
             ctx.lineWidth = 1;
             ctx.strokeRect(areaX, areaY, areaW, areaH);
 
-            // --- 2. 名前の描画 ---
+            // 名前描画
             const name = ui.name.value;
             if (name) {
                 let size = parseInt(ui.textSize.value);
-                const posY = CONFIG.baseH * (parseFloat(ui.textY.value) / 100);
-                
-                ctx.font = `bold ${size}px ${CONFIG.defaultFont}`;
-                const textMetrics = ctx.measureText(name);
-                const textWidth = textMetrics.width;
-
-                const maxWidth = CONFIG.baseW - (CONFIG.frameThickness * 2) - 20;
-
-                // 文字が枠からはみ出る場合は自動縮小
-                if (textWidth > maxWidth) {
-                    const ratio = maxWidth / textWidth;
-                    size = Math.floor(size * ratio);
-                    ctx.font = `bold ${size}px ${CONFIG.defaultFont}`;
-                }
-
+                const posY = CONFIG.height * (parseFloat(ui.textY.value) / 100);
+                ctx.font = `bold ${size}px ${CONFIG.font}`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillStyle = "#000";
-                ctx.fillText(name, CONFIG.baseW/2, posY);
+                
+                const maxTextW = CONFIG.width - (CONFIG.frameSize * 2) - 20;
+                const textW = ctx.measureText(name).width;
+                if (textW > maxTextW) {
+                    size = Math.floor(size * (maxTextW / textW));
+                    ctx.font = `bold ${size}px ${CONFIG.font}`;
+                }
+                ctx.fillText(name, CONFIG.width/2, posY);
             }
 
-            // --- 3. 額縁とリボンの描画 ---
-            drawFrame(ctx, CONFIG.baseW, CONFIG.baseH);
+            // 額縁描画
+            drawFrame(ctx, CONFIG.width, CONFIG.height);
         }
 
-        /**
-         * 額縁を描画する関数
-         */
-        function drawFrame(context, w, h) {
-            const fw = CONFIG.frameThickness;
+        // 額縁の描画
+        function drawFrame(ctx, w, h) {
+            const fw = CONFIG.frameSize;
             
-            // 外側の黒枠
-            context.fillStyle = "#000000";
-            context.shadowColor = "rgba(0,0,0,0.5)";
-            context.shadowBlur = 10;
+            // 黒枠
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, w, fw);
+            ctx.fillRect(0, h-fw, w, fw);
+            ctx.fillRect(0, 0, fw, h);
+            ctx.fillRect(w-fw, 0, fw, h);
             
-            context.fillRect(0, 0, w, fw);         // 上
-            context.fillRect(0, h-fw, w, fw);      // 下
-            context.fillRect(0, 0, fw, h);         // 左
-            context.fillRect(w-fw, 0, fw, h);      // 右
+            // 銀色の線
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, "#888"); grad.addColorStop(0.5, "#fff"); grad.addColorStop(1, "#666");
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(fw-8, fw-8, w-(fw-8)*2, h-(fw-8)*2);
             
-            context.shadowBlur = 0; 
-
-            // 銀色のライン
-            const gradSilver = context.createLinearGradient(0, 0, w, h);
-            gradSilver.addColorStop(0, "#888");
-            gradSilver.addColorStop(0.2, "#fff");
-            gradSilver.addColorStop(0.5, "#999");
-            gradSilver.addColorStop(0.8, "#fff");
-            gradSilver.addColorStop(1, "#666");
-
-            context.strokeStyle = gradSilver;
-            
-            // 外側の銀線
-            context.lineWidth = CONFIG.silverLineSize;
-            const offset1 = fw - 8;
-            context.strokeRect(offset1, offset1, w - offset1*2, h - offset1*2);
-
-            // 内側の細い銀線
-            context.lineWidth = 1;
-            const offset2 = fw - 14;
-            context.strokeRect(offset2, offset2, w - offset2*2, h - offset2*2);
-
-            // リボンの描画
-            drawRibbon(context, w, h, fw);
+            // リボン描画（ONの時のみ）
+            if (state.showRibbon) {
+                ctx.beginPath();
+                ctx.lineWidth = fw; 
+                ctx.strokeStyle = "#000"; 
+                // 左リボン
+                ctx.moveTo(w/2, -fw);
+                ctx.quadraticCurveTo(w*0.25, h*0.15, -fw, h*0.35);
+                // 右リボン
+                ctx.moveTo(w/2, -fw);
+                ctx.quadraticCurveTo(w*0.75, h*0.15, w+fw, h*0.35);
+                ctx.stroke();
+            }
         }
 
-        /**
-         * 額縁上部のリボンを描画する関数
-         */
-        function drawRibbon(ctx, w, h, fw) {
-            ctx.beginPath();
-            ctx.lineWidth = fw; 
-            ctx.strokeStyle = "#000000"; 
-            ctx.lineCap = "butt"; 
-            
-            const startX = w / 2;
-            const startY = -fw; 
-            const endY = h * 0.35;
-            const cpY = h * 0.15; 
-
-            // 左側のリボン
-            ctx.moveTo(startX, startY);
-            ctx.quadraticCurveTo(w * 0.25, cpY, -fw, endY);
-            
-            // 右側のリボン
-            ctx.moveTo(startX, startY);
-            ctx.quadraticCurveTo(w * 0.75, cpY, w + fw, endY);
-            
-            ctx.stroke();
+        // 強制白黒化
+        function applyGrayscale(ctx, x, y, w, h) {
+            const imgData = ctx.getImageData(x, y, w, h);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                d[i] = d[i+1] = d[i+2] = gray;
+            }
+            ctx.putImageData(imgData, x, y);
         }
 
-        /**
-         * =========================================
-         * 画像保存処理 (Download Logic)
-         * =========================================
-         */
-        function downloadImage() {
-            const targetW = parseInt(ui.saveWidth.value) || CONFIG.baseW;
-            const ratio = CONFIG.baseH / CONFIG.baseW;
-            const targetH = Math.round(targetW * ratio);
+        // 保存処理
+        function handleSave() {
+            const format = ui.saveFormat.value;
+            const ext = format === 'image/jpeg' ? 'jpg' : 'png';
+            const targetW = parseInt(ui.saveWidth.value) || CONFIG.width;
+            const targetH = Math.round(targetW * (CONFIG.height / CONFIG.width));
 
-            // 保存用の別キャンバスを作成（指定サイズで描画）
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = targetW;
             tempCanvas.height = targetH;
-            const tempCtx = tempCanvas.getContext('2d');
-
-            tempCtx.imageSmoothingEnabled = true;
-            tempCtx.imageSmoothingQuality = 'high';
-            tempCtx.drawImage(canvas, 0, 0, targetW, targetH);
-
-            const link = document.createElement('a');
-            const format = ui.saveFormat.value;
-            const ext = format === 'image/jpeg' ? 'jpg' : 'png';
+            const tCtx = tempCanvas.getContext('2d');
             
-            let fileName;
-            const nameVal = ui.name.value.trim();
-            if (nameVal) {
-                fileName = `${nameVal}.${ext}`;
-            } else {
-                fileName = `iei_photo_${targetW}px.${ext}`;
-            }
+            tCtx.imageSmoothingEnabled = true;
+            tCtx.imageSmoothingQuality = 'high';
+            tCtx.drawImage(canvas, 0, 0, targetW, targetH);
 
-            link.download = fileName;
-            link.href = tempCanvas.toDataURL(format, 0.9);
-            link.click();
+            const dataUrl = tempCanvas.toDataURL(format, 0.9);
+
+            if (isMobile) {
+                ui.modalImg.src = dataUrl;
+                ui.modal.classList.add('active');
+            } else {
+                const link = document.createElement('a');
+                let fileName = ui.name.value.trim();
+                if(!fileName) fileName = "iei_photo";
+                link.download = fileName + "." + ext;
+                link.href = dataUrl;
+                link.click();
+            }
         }
 
-        // アプリケーション開始
+        function closeModal() {
+            ui.modal.classList.remove('active');
+        }
+
         init();
     </script>
 </body>
 </html>
-
-
